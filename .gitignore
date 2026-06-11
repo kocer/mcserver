@@ -1,0 +1,37 @@
+# Binaries (setup.sh ile indirilir)
+paper.jar
+plugins/*.jar
+libraries/
+versions/
+cache/
+versions/
+
+# Dünya verisi
+world/
+world_nether/
+world_the_end/
+
+# Loglar & runtime
+logs/
+*.log
+console.in
+.holder.pid
+version_history.json
+
+# Oyuncu/runtime verisi (sunucu üretir)
+ops.json
+whitelist.json
+banned-players.json
+banned-ips.json
+usercache.json
+banned-*.json
+
+# Plugin runtime verisi
+plugins/Essentials/userdata/
+plugins/Essentials/usermap.csv
+plugins/Essentials/items.json
+plugins/bStats/
+
+# Python
+__pycache__/
+*.pyc
