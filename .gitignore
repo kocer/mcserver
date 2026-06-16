@@ -35,3 +35,9 @@ plugins/bStats/
 # Python
 __pycache__/
 *.pyc
+
+# playit.gg tünel (binary + gizli anahtar, setup.sh ile indirilir)
+playit
+playit-cli
+playit.toml
+setup.out
