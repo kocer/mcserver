@@ -5,9 +5,27 @@ JAVA=/usr/lib/jvm/java-11-openjdk/bin/java
 PIPE="$DIR/console.in"
 LOG="$DIR/logs/run.log"
 PORT=25565
+PLAYIT="$DIR/playit"
+PLAYIT_SOCK="$DIR/playit.sock"
+PLAYIT_SECRET="$DIR/playit.toml"
+PLAYIT_LOG="$DIR/playit.log"
 
 is_up() { ss -tln 2>/dev/null | grep -q ":$PORT "; }
 srv_pid() { ss -tlnp 2>/dev/null | grep ":$PORT " | grep -oP 'pid=\K[0-9]+' | head -1; }
+
+playit_up() { pgrep -x playit >/dev/null 2>&1; }
+playit_start() {
+  [ -x "$PLAYIT" ] && [ -f "$PLAYIT_SECRET" ] || { echo "  playit kurulu değil (setup.sh / claim gerek), tünel atlandı."; return 0; }
+  if playit_up; then echo "  playit tüneli zaten açık."; return 0; fi
+  rm -f "$PLAYIT_SOCK"
+  nohup "$PLAYIT" --socket-path "$PLAYIT_SOCK" --secret-path "$PLAYIT_SECRET" -l "$PLAYIT_LOG" >/dev/null 2>&1 &
+  echo "  playit tüneli başlatıldı (adres: playit.gg/account/tunnels)."
+}
+playit_stop() {
+  playit_up || return 0
+  pkill -x playit 2>/dev/null
+  echo "  playit tüneli durdu."
+}
 
 start() {
   if is_up; then echo "Zaten çalışıyor (pid $(srv_pid))."; return 0; fi
@@ -25,15 +43,21 @@ start() {
     -XX:+PerfDisableSharedMem -XX:MaxTenuringThreshold=1 \
     -jar paper.jar nogui < "$PIPE" > "$LOG" 2>&1 &
   echo "Başlatılıyor... (log: mc log)"
+  playit_start
   for i in $(seq 1 60); do grep -q "For help" "$LOG" 2>/dev/null && { echo "Hazır. Adres: localhost / $(ip route get 1.1.1.1 2>/dev/null | grep -oP 'src \K[0-9.]+')"; return 0; }; sleep 1; done
   echo "60sn'de açılmadı, 'mc log' bak."
 }
 
 stop() {
-  if ! is_up; then echo "Zaten kapalı."; return 0; fi
-  echo "stop" > "$PIPE"
-  for i in $(seq 1 30); do is_up || { echo "Durdu."; [ -f "$DIR/.holder.pid" ] && kill "$(cat "$DIR/.holder.pid")" 2>/dev/null; rm -f "$DIR/.holder.pid"; return 0; }; sleep 1; done
-  echo "Durmadı, zorla kapatılıyor."; kill "$(srv_pid)" 2>/dev/null
+  if is_up; then
+    echo "stop" > "$PIPE"
+    for i in $(seq 1 30); do is_up || break; sleep 1; done
+    if is_up; then echo "Durmadı, zorla kapatılıyor."; kill "$(srv_pid)" 2>/dev/null; else echo "Sunucu durdu."; fi
+    [ -f "$DIR/.holder.pid" ] && kill "$(cat "$DIR/.holder.pid")" 2>/dev/null; rm -f "$DIR/.holder.pid"
+  else
+    echo "Sunucu zaten kapalı."
+  fi
+  playit_stop
 }
 
 status() {
@@ -45,6 +69,7 @@ status() {
   else
     echo "KAPALI"
   fi
+  if playit_up; then echo "playit tüneli: AÇIK  (adres: playit.gg/account/tunnels)"; else echo "playit tüneli: kapalı"; fi
 }
 
 console() {
